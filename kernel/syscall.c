@@ -164,10 +164,34 @@ static char *syscallnames[] = {
     [SYS_trace] "trace" // 1ST SYSTEM CALL
 };
 
+int syscall_argc[] = {
+    [SYS_fork] 0,
+    [SYS_exit] 1,
+    [SYS_wait] 1,
+    [SYS_pipe] 1,
+    [SYS_read] 3,
+    [SYS_kill] 1,
+    [SYS_exec] 2,
+    [SYS_fstat] 2,
+    [SYS_chdir] 1,
+    [SYS_dup] 1,
+    [SYS_getpid] 0,
+    [SYS_sbrk] 1,
+    [SYS_sleep] 1,
+    [SYS_uptime] 0,
+    [SYS_open] 2,
+    [SYS_write] 3,
+    [SYS_mknod] 1,
+    [SYS_unlink] 1,
+    [SYS_link] 2,
+    [SYS_mkdir] 2,
+    [SYS_close] 1,
+    [SYS_trace] 1,
+};
+
 // sys_ps
 // sys_set_priority
 // sys_waitx
-
 void syscall(void) // IS CALLED WHEN A SYSTEM CALL IS DONE
 {
   int num, mask;
@@ -180,6 +204,8 @@ void syscall(void) // IS CALLED WHEN A SYSTEM CALL IS DONE
   {
     // Use num to lookup the system call function for num, call it,
     // and store its return value in p->trapframe->a0
+    int argc = syscall_argc[num];
+    int arg_0 = p->trapframe->a0;
     p->trapframe->a0 = syscalls[num](); // return value of syscall
     
     // ADD CODE HERE TO CHECK FOR MASK AND IF SYSCALL NUMBER IS SET OR NOT
@@ -189,6 +215,18 @@ void syscall(void) // IS CALLED WHEN A SYSTEM CALL IS DONE
       // PRINT THE LINE
       printf("%d: ", p->pid);                    // pid
       printf("syscall %s (", syscallnames[num]); // syscall name
+      if (argc >= 1)
+        printf("%d", arg_0);
+      if (argc >= 2)
+        printf(" %d", p->trapframe->a1);
+      if (argc >= 3)
+        printf(" %d", p->trapframe->a2);
+      if (argc >= 4)
+        printf(" %d", p->trapframe->a3);
+      if (argc >= 5)
+        printf(" %d", p->trapframe->a4);
+      if (argc >= 6)
+        printf(" %d", p->trapframe->a5);
       printf(") -> %d\n", p->trapframe->a0);
     }
 
