@@ -49,6 +49,16 @@ sys_sbrk(void)
 }
 
 uint64
+sys_trace(void) // JUST FOR CALLING SOME SYSTEM CALL IN PROC.C 
+{
+  // The functions in sysproc.c can access the process structure of a given process by calling myproc()
+  int mask;
+  argint(0, &mask);
+  myproc()->mask=mask;
+  return 1; // during process initialisation only , we updated value of mask
+}
+
+uint64
 sys_sleep(void)
 {
   int n;

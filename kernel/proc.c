@@ -1,3 +1,4 @@
+// ASSOCIATED WITH CREATING A PROCESS
 #include "types.h"
 #include "param.h"
 #include "memlayout.h"
@@ -54,6 +55,7 @@ procinit(void)
   for(p = proc; p < &proc[NPROC]; p++) {
       initlock(&p->lock, "proc");
       p->state = UNUSED;
+      p->mask=-1;
       p->kstack = KSTACK((int) (p - proc));
   }
 }
@@ -297,7 +299,9 @@ fork(void)
   np->sz = p->sz;
 
   // copy saved user registers.
-  *(np->trapframe) = *(p->trapframe);
+  *(np->trapframe) = *(p->trapframe); 
+
+  np->mask=p->mask; // copy mask
 
   // Cause fork to return 0 in the child.
   np->trapframe->a0 = 0;
@@ -384,6 +388,7 @@ exit(int status)
   sched();
   panic("zombie exit");
 }
+
 
 // Wait for a child process to exit and return its pid.
 // Return -1 if this process has no children.
