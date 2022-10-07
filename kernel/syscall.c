@@ -210,7 +210,7 @@ void syscall(void) // IS CALLED WHEN A SYSTEM CALL IS DONE
     
     // ADD CODE HERE TO CHECK FOR MASK AND IF SYSCALL NUMBER IS SET OR NOT
 
-    if (mask != -1)
+    if ((mask != -1) && (mask & (1<<num)))
     {
       // PRINT THE LINE
       printf("%d: ", p->pid);                    // pid
@@ -227,7 +227,7 @@ void syscall(void) // IS CALLED WHEN A SYSTEM CALL IS DONE
         printf(" %d", p->trapframe->a4);
       if (argc >= 6)
         printf(" %d", p->trapframe->a5);
-      printf(") -> %d\n", p->trapframe->a0);
+      printf(") -> %d\n", p->trapframe->a0); // return value
     }
 
   }
