@@ -23,6 +23,8 @@ char* sbrk(int);
 int sleep(int);
 int uptime(void);
 int trace(int mask); // MY 1ST SYSCALL
+int sigalarm(int ticks, void (*handler)()); // MY 2ND SYSCALL
+int sigreturn(void);
 
 // ulib.c
 int stat(const char*, struct stat*);

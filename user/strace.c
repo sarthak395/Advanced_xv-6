@@ -12,11 +12,10 @@ int main(int argc, char *argv[])
     }
     else if(pid){ // IN PARENT 
         wait(0);
-        // we call trace with argument as "mask" which is the syscal number to be traced 
     } 
     else{ // IN CHILD
         // execute the function as it is
-        trace(atoi(argv[1]));
+        trace(atoi(argv[1])); 
         if (exec(argv[2], argv + 2) < 0)
             printf("Exec Failed\n"); // printing on stderr
     }

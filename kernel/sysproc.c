@@ -59,6 +59,40 @@ sys_trace(void) // JUST FOR CALLING SOME SYSTEM CALL IN PROC.C
 }
 
 uint64
+sys_sigalarm(void) // JUST FOR CALLING SOME SYSTEM CALL IN PROC.C 
+{
+  // The functions in sysproc.c can access the process structure of a given process by calling myproc()
+  int n;
+  uint64 handler;
+
+  argint(0,&n);
+  argaddr(1,&handler);
+
+  myproc()->is_sigalarm=0;
+  myproc()->tslalarm=0;
+  myproc()->alarmint=n;
+  myproc()->alarmhandler=handler;
+
+  // just alert the user every n ticks 
+  return 1; // during process initialisation only , we updated value of mask
+}
+
+uint64 sys_sigreturn(void){
+  struct proc* p=myproc();
+
+  // Restoring kernel stack for trapframe
+  p->tf_copy->kernel_satp=p->trapframe->kernel_satp;
+  p->tf_copy->kernel_sp=p->trapframe->kernel_sp;
+  p->tf_copy->kernel_trap=p->trapframe->kernel_trap;
+  p->tf_copy->kernel_hartid=p->trapframe->kernel_hartid;
+
+  // restoring previous things of trapframe
+  *(p->trapframe)=*(p->tf_copy); 
+  p->is_sigalarm=0; // disabling alarm
+  return 1;
+}
+
+uint64
 sys_sleep(void)
 {
   int n;

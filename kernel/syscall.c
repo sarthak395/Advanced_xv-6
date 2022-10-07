@@ -111,6 +111,8 @@ extern uint64 sys_link(void);
 extern uint64 sys_mkdir(void);
 extern uint64 sys_close(void);
 extern uint64 sys_trace(void); // 1ST SYSTEM CALL
+extern uint64 sys_sigalarm(void); // 2ND SYSTEM CALL
+extern uint64 sys_sigreturn(void); // 2ND SYSTEM CALL
 
 // An array mapping syscall numbers from syscall.h
 // to the function that handles the system call.
@@ -136,7 +138,9 @@ static uint64 (*syscalls[])(void) = {
     [SYS_link] sys_link,
     [SYS_mkdir] sys_mkdir,
     [SYS_close] sys_close,
-    [SYS_trace] sys_trace // 1ST SYSTEM CALL
+    [SYS_trace] sys_trace, // 1ST SYSTEM CALL
+    [SYS_sigalarm] sys_sigalarm, // 2ND SYSTEM CALL
+    [SYS_sigreturn] sys_sigreturn // 2ND SYSTEM CALL
 };
 
 static char *syscallnames[] = {
@@ -161,7 +165,9 @@ static char *syscallnames[] = {
     [SYS_link] "link",
     [SYS_mkdir] "mkdir",
     [SYS_close] "close",
-    [SYS_trace] "trace" // 1ST SYSTEM CALL
+    [SYS_trace] "trace", // 1ST SYSTEM CALL
+    [SYS_sigalarm] "sigalarm", // 2ND SYSTEM CALL
+    [SYS_sigreturn] "sigreturn" // 2ND SYSTEM CALL
 };
 
 int syscall_argc[] = {
@@ -187,6 +193,8 @@ int syscall_argc[] = {
     [SYS_mkdir] 2,
     [SYS_close] 1,
     [SYS_trace] 1,
+    [SYS_sigalarm] 2,
+    [SYS_sigreturn] 0,
 };
 
 // sys_ps
