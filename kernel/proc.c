@@ -160,10 +160,10 @@ found:
 
   // time
   p->starttime = ticks; // initialise starting time of process
-  p->is_sigalarm=0;
-  p->alarmhandler = 0;  // function
-  p->alarmint = 0;      // alarm interval
-  p->tslalarm = 0;      // time since last alarm
+  p->is_sigalarm = 0;
+  p->alarmhandler = 0; // function
+  p->alarmint = 0;     // alarm interval
+  p->tslalarm = 0;     // time since last alarm
 
   return p;
 }
@@ -480,6 +480,8 @@ void scheduler(void)
   struct cpu *c = mycpu();
 
   c->proc = 0;
+  
+#ifdef RR // ROUND ROBIN SCHEDULER
   for (;;)
   {
     // Avoid deadlock by ensuring that devices can interrupt.
@@ -504,6 +506,43 @@ void scheduler(void)
       release(&p->lock);
     }
   }
+
+#elif defined(FCFS) // FIRST COME FIRST SERVE SCHEDULER
+  for (;;)
+  {
+    struct proc *chosen_proc = proc;
+    // Avoid deadlock by ensuring that devices can interrupt.
+    intr_on();
+
+    // FINDING CHOSEN PROCESS
+    int min_time = __INT64_MAX__;
+    for (p = proc; p < &proc[NPROC]; p++)
+    {
+      if ((p->state == RUNNABLE) && (p->starttime < min_time))
+      {
+        chosenproc = p;
+        min_time = p->starttime;
+      }
+    }
+
+    // SWITCHING TO CHOSEN PROC
+    acquire(&chosenproc->lock);
+    if (chosenproc->state == RUNNABLE)
+    {
+      // Switch to chosen process.  It is the process's job
+      // to release its lock and then reacquire it
+      // before jumping back to us.
+      chosenproc->state = RUNNING;
+      c->proc = chosenproc;
+      swtch(&c->context, &chosenproc->context);
+
+      // Process is done running for now.
+      // It should have changed its p->state before coming back.
+      c->proc = 0;
+    }
+    release(&chosenproc->lock);
+  }
+#endif
 }
 
 // Switch to scheduler.  Must hold only p->lock

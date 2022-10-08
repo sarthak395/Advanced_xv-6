@@ -78,19 +78,21 @@ void usertrap(void)
   if (killed(p))
     exit(-1);
 
+#ifdef RR // disabling interrupt for FCFS
+  if(which_dev==2)
+    yield();
+#endif 
+
   // give up the CPU if this is an external timer interrupt
-  if ((which_dev == 2) && (p != 0) && (p->state == RUNNING)) // TIMER INTERRUPT FROM USER SPACE WHEN PROCESS IS RUNNING
+  if ((which_dev == 2) && (p != 0) && (p->state == RUNNING) && (p->alarmint!=0)) // TIMER INTERRUPT FROM USER SPACE WHEN PROCESS IS RUNNING
   {
-    if (p->alarmint != 0) //  if sigalarm was ever called
+    p->tslalarm += 1;                                      // incrementing time since last alarm
+    if ((p->tslalarm >= p->alarmint) && (!p->is_sigalarm)) // Ohh !! we have to call the handler now
     {
-      p->tslalarm += 1;               // incrementing time since last alarm
-      if ((p->tslalarm >= p->alarmint) && (!p->is_sigalarm)) // Ohh !! we have to call the handler now
-      {  
-        p->tslalarm = 0;   // resetting value of tslalarm
-        p->is_sigalarm=1; // enabling alarm
-        *(p->tf_copy)=*(p->trapframe); // storing the current state in copy
-        p->trapframe->epc=p->alarmhandler; // calling handler function
-      }
+      p->tslalarm = 0;                     // resetting value of tslalarm
+      p->is_sigalarm = 1;                  // enabling alarm
+      *(p->tf_copy) = *(p->trapframe);     // storing the current state in copy
+      p->trapframe->epc = p->alarmhandler; // calling handler function
     }
     yield();
   }
@@ -164,9 +166,11 @@ void kerneltrap()
     panic("kerneltrap");
   }
 
+#ifdef RR
   // give up the CPU if this is a timer interrupt.
   if (which_dev == 2 && myproc() != 0 && myproc()->state == RUNNING)
     yield();
+#endif
 
   // the yield() may have caused some traps to occur,
   // so restore trap registers for use by kernelvec.S's sepc instruction.
