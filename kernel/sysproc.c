@@ -89,7 +89,7 @@ uint64 sys_sigreturn(void){
   // restoring previous things of trapframe
   *(p->trapframe)=*(p->tf_copy); 
   p->is_sigalarm=0; // disabling alarm
-  return 1;
+  return myproc()->trapframe->a0;
 }
 
 uint64
