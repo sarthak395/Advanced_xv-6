@@ -77,6 +77,18 @@ sys_sigalarm(void) // JUST FOR CALLING SOME SYSTEM CALL IN PROC.C
   return 1; // during process initialisation only , we updated value of mask
 }
 
+uint64
+sys_settickets(void) // JUST FOR CALLING SOME SYSTEM CALL IN PROC.C 
+{
+  // The functions in sysproc.c can access the process structure of a given process by calling myproc()
+  int tickets;
+  argint(0,&tickets);
+
+  myproc()->tickets=tickets;
+
+  return 1; 
+}
+
 uint64 sys_sigreturn(void){
   struct proc* p=myproc();
 

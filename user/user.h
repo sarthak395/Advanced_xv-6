@@ -25,6 +25,7 @@ int uptime(void);
 int trace(int mask); // MY 1ST SYSCALL
 int sigalarm(int ticks, void (*handler)()); // MY 2ND SYSCALL
 int sigreturn(void);
+int settickets(int number);
 
 // ulib.c
 int stat(const char*, struct stat*);

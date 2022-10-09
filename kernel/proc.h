@@ -106,10 +106,17 @@ struct proc {
   char name[16];               // Process name (debugging)
 
   int mask; // for checking on which processes we have to report
+
+  // FOR FCFS
   int starttime; // when process was created
+
+  // FOR SIGALARM
   int is_sigalarm; // 0 or 1 if sigalarm 
   int alarmint; // interval of ticks
   uint64 alarmhandler; // handler function for sigalarm
   int tslalarm; // time passed since last alarm call was done
   struct trapframe* tf_copy;
+
+  // FOR LBS
+  int tickets;
 };

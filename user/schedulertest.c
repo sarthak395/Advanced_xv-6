@@ -18,6 +18,17 @@ int main()
             break;
         if (pid == 0)
         {
+#ifdef LBS
+    if(n<IO)
+        sleep(200);
+    else
+    {
+        for (volatile int i = 0; i < 1000000000; i++)
+                {
+                    settickets(i+1);
+                } // CPU bound process
+    }
+#endif
 #ifndef FCFS
             if (n < IO)
             {

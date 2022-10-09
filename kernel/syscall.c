@@ -113,6 +113,7 @@ extern uint64 sys_close(void);
 extern uint64 sys_trace(void); // 1ST SYSTEM CALL
 extern uint64 sys_sigalarm(void); // 2ND SYSTEM CALL
 extern uint64 sys_sigreturn(void); // 2ND SYSTEM CALL
+extern uint64 sys_settickets(void); // 3rd SYSTEM CALL
 
 // An array mapping syscall numbers from syscall.h
 // to the function that handles the system call.
@@ -140,7 +141,8 @@ static uint64 (*syscalls[])(void) = {
     [SYS_close] sys_close,
     [SYS_trace] sys_trace, // 1ST SYSTEM CALL
     [SYS_sigalarm] sys_sigalarm, // 2ND SYSTEM CALL
-    [SYS_sigreturn] sys_sigreturn // 2ND SYSTEM CALL
+    [SYS_sigreturn] sys_sigreturn, // 2ND SYSTEM CALL
+    [SYS_settickets] sys_settickets // 3rd SYSTEM CALL
 };
 
 static char *syscallnames[] = {
@@ -167,7 +169,8 @@ static char *syscallnames[] = {
     [SYS_close] "close",
     [SYS_trace] "trace", // 1ST SYSTEM CALL
     [SYS_sigalarm] "sigalarm", // 2ND SYSTEM CALL
-    [SYS_sigreturn] "sigreturn" // 2ND SYSTEM CALL
+    [SYS_sigreturn] "sigreturn", // 2ND SYSTEM CALL
+    [SYS_settickets] "settickets" // 2ND SYSTEM CALL
 };
 
 int syscall_argc[] = {
@@ -195,6 +198,7 @@ int syscall_argc[] = {
     [SYS_trace] 1,
     [SYS_sigalarm] 2,
     [SYS_sigreturn] 0,
+    [SYS_settickets] 1,
 };
 
 // sys_ps

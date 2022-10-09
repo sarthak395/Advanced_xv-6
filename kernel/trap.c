@@ -83,6 +83,11 @@ void usertrap(void)
     yield();
 #endif 
 
+#ifdef LBS // disabling interrupt for FCFS
+  if(which_dev==2)
+    yield();
+#endif 
+
   // give up the CPU if this is an external timer interrupt
   if ((which_dev == 2) && (p != 0) && (p->state == RUNNING) && (p->alarmint!=0)) // TIMER INTERRUPT FROM USER SPACE WHEN PROCESS IS RUNNING
   {
@@ -167,6 +172,12 @@ void kerneltrap()
   }
 
 #ifdef RR
+  // give up the CPU if this is a timer interrupt.
+  if (which_dev == 2 && myproc() != 0 && myproc()->state == RUNNING)
+    yield();
+#endif
+
+#ifdef LBS
   // give up the CPU if this is a timer interrupt.
   if (which_dev == 2 && myproc() != 0 && myproc()->state == RUNNING)
     yield();

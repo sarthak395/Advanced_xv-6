@@ -165,6 +165,9 @@ found:
   p->alarmint = 0;     // alarm interval
   p->tslalarm = 0;     // time since last alarm
 
+  // for lbs
+  p->tickets=1; // by default each process has 1 ticket
+
   return p;
 }
 
@@ -324,6 +327,7 @@ int fork(void)
   *(np->trapframe) = *(p->trapframe);
 
   np->mask = p->mask; // copy mask
+  np->tickets=p->tickets; // child should have same number of tickets
 
   // Cause fork to return 0 in the child.
   np->trapframe->a0 = 0;
@@ -481,7 +485,7 @@ void scheduler(void)
 
   c->proc = 0;
   
-#ifdef RR // ROUND ROBIN SCHEDULER
+#ifdef RR // ROUND ROBIN SCHEDULER (PRE-EMPTIVE)
   for (;;)
   {
     // Avoid deadlock by ensuring that devices can interrupt.
@@ -507,7 +511,7 @@ void scheduler(void)
     }
   }
 
-#elif defined(FCFS) // FIRST COME FIRST SERVE SCHEDULER
+#elif defined(FCFS) // FIRST COME FIRST SERVE SCHEDULER (NON - PREEMPTIVE)
   for (;;)
   {
     struct proc *chosen_proc = proc;
@@ -522,6 +526,42 @@ void scheduler(void)
       {
         chosenproc = p;
         min_time = p->starttime;
+      }
+    }
+
+    // SWITCHING TO CHOSEN PROC
+    acquire(&chosenproc->lock);
+    if (chosenproc->state == RUNNABLE)
+    {
+      // Switch to chosen process.  It is the process's job
+      // to release its lock and then reacquire it
+      // before jumping back to us.
+      chosenproc->state = RUNNING;
+      c->proc = chosenproc;
+      swtch(&c->context, &chosenproc->context);
+
+      // Process is done running for now.
+      // It should have changed its p->state before coming back.
+      c->proc = 0;
+    }
+    release(&chosenproc->lock);
+  }
+
+#elif defined(LBS) // LOTTERY BASED SCHEDULER (PRE-EMPTIVE)
+  for (;;)
+  {
+    struct proc *chosen_proc = proc;
+    // Avoid deadlock by ensuring that devices can interrupt.
+    intr_on();
+
+    // FINDING CHOSEN PROCESS I.E PROCESS WITH MAXIMUM TICKETS
+    int max_tickets = 0;
+    for (p = proc; p < &proc[NPROC]; p++)
+    {
+      if ((p->state == RUNNABLE) && (p->tickets > max_tickets))
+      {
+        chosenproc = p;
+        max_tickets = p->tickets;
       }
     }
 

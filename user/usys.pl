@@ -39,3 +39,4 @@ entry("uptime");
 entry("trace"); # 1ST SYSCALL
 entry("sigalarm"); # 2ND SYSCALL
 entry("sigreturn"); # 2ND SYSCALL
+entry("settickets"); # 3rd SYSCALL
