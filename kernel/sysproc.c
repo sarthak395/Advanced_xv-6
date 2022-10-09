@@ -6,6 +6,9 @@
 #include "spinlock.h"
 #include "proc.h"
 
+#define min(a, b) ((a) < (b) ? (a) : (b))
+#define max(a, b) ((a) > (b) ? (a) : (b))
+
 uint64
 sys_exit(void)
 {
@@ -87,6 +90,37 @@ sys_settickets(void) // JUST FOR CALLING SOME SYSTEM CALL IN PROC.C
   myproc()->tickets=tickets;
 
   return 1; 
+}
+
+uint64
+sys_set_priority(void)
+{
+  int np, pid, ret = 0;
+  struct proc *p;
+  extern struct proc proc[];
+
+  argint(0, &np);
+  argint(1, &pid);
+
+  for (p = proc; p < &proc[NPROC]; p++)
+  {
+    if (p->pid == pid)
+    {
+      int olddp= max(0,min(p->stpriority-p->niceness+5,100)); // old priority
+
+      ret = p->stpriority; // storing old static priority
+
+      p->niceness = 5; // updating niceness
+      p->stpriority = np; // updating static priority
+
+      int newdp= max(0,min(p->stpriority-p->niceness+5,100)); // new priority
+
+      if(newdp<olddp) // if priority increases i.e dp value decreases , then reschedule
+        p->numpicked = 0;
+    }
+  }
+
+  return ret;
 }
 
 uint64 sys_sigreturn(void){

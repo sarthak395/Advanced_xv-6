@@ -7,6 +7,9 @@
 #include "proc.h"
 #include "defs.h"
 
+#define min(a, b) ((a) < (b) ? (a) : (b))
+#define max(a, b) ((a) > (b) ? (a) : (b))
+
 struct cpu cpus[NCPU];
 
 struct proc proc[NPROC];
@@ -160,13 +163,22 @@ found:
 
   // time
   p->starttime = ticks; // initialise starting time of process
+  p->runtime = 0;
+  p->sleeptime = 0;
+
+  // PBS
+  p->niceness = 5;    // default
+  p->stpriority = 60; // static priority
+  p->numpicked = 0;   // number of times picked by scheduler
+
+  // sigalarm and sigreturn
   p->is_sigalarm = 0;
   p->alarmhandler = 0; // function
   p->alarmint = 0;     // alarm interval
   p->tslalarm = 0;     // time since last alarm
 
-  // for lbs
-  p->tickets=1; // by default each process has 1 ticket
+  // LBS
+  p->tickets = 1; // by default each process has 1 ticket
 
   return p;
 }
@@ -326,8 +338,8 @@ int fork(void)
   // copy saved user registers.
   *(np->trapframe) = *(p->trapframe);
 
-  np->mask = p->mask; // copy mask
-  np->tickets=p->tickets; // child should have same number of tickets
+  np->mask = p->mask;       // copy mask
+  np->tickets = p->tickets; // child should have same number of tickets
 
   // Cause fork to return 0 in the child.
   np->trapframe->a0 = 0;
@@ -484,7 +496,7 @@ void scheduler(void)
   struct cpu *c = mycpu();
 
   c->proc = 0;
-  
+
 #ifdef RR // ROUND ROBIN SCHEDULER (PRE-EMPTIVE)
   for (;;)
   {
@@ -512,14 +524,15 @@ void scheduler(void)
   }
 
 #elif defined(FCFS) // FIRST COME FIRST SERVE SCHEDULER (NON - PREEMPTIVE)
+  printf("scheduler FCFS\n");
   for (;;)
   {
-    struct proc *chosen_proc = proc;
+    struct proc *chosenproc = proc;
     // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
 
     // FINDING CHOSEN PROCESS
-    int min_time = __INT64_MAX__;
+    int min_time = __INT32_MAX__;
     for (p = proc; p < &proc[NPROC]; p++)
     {
       if ((p->state == RUNNABLE) && (p->starttime < min_time))
@@ -550,7 +563,7 @@ void scheduler(void)
 #elif defined(LBS) // LOTTERY BASED SCHEDULER (PRE-EMPTIVE)
   for (;;)
   {
-    struct proc *chosen_proc = proc;
+    struct proc *chosenproc = proc;
     // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
 
@@ -582,6 +595,59 @@ void scheduler(void)
     }
     release(&chosenproc->lock);
   }
+#elif defined(PBS) // PRIORITY - BASED SCHEDULING (NON - PREEMPTIVE)
+  printf("Scheduler : PBS\n");
+  for (;;)
+  {
+    struct proc *chosenproc = proc;
+    // Avoid deadlock by ensuring that devices can interrupt.
+    intr_on();
+
+    // FINDING CHOSEN PROCESS I.E PROCESS WITH MAXIMUM PRIORITY / LOWER DP VALUE 
+    int min_dp = __INT32_MAX__;
+    for (p = proc; p < &proc[NPROC]; p++)
+    {
+      if (p->state == RUNNABLE)
+      {
+        int dp = max(0, min(p->stpriority - p->niceness + 5, 100));
+        if (dp < min_dp)
+        {
+          min_dp = dp;
+          chosenproc = p;
+        }
+        else if (dp == min_dp)
+        {
+          if (p->numpicked < chosenproc->numpicked)
+            chosenproc=p;
+          else if(p->numpicked==chosenproc->numpicked)
+          {
+            if(p->starttime < chosenproc->starttime)
+              chosenproc=p;
+          }
+        }
+      }
+    }
+
+    // SWITCHING TO CHOSEN PROC
+    acquire(&chosenproc->lock);
+    if (chosenproc->state == RUNNABLE)
+    {
+      // Switch to chosen process.  It is the process's job
+      // to release its lock and then reacquire it
+      // before jumping back to us.
+      chosenproc->state = RUNNING;
+      chosenproc->numpicked++; // increment the number of times process is picked
+      c->proc = chosenproc;
+      swtch(&c->context, &chosenproc->context);
+
+      // Process is done running for now.
+      // It should have changed its p->state before coming back.
+      c->proc = 0;
+    }
+    release(&chosenproc->lock);
+    chosenproc->niceness=(10*chosenproc->sleeptime)/(chosenproc->sleeptime + chosenproc->runtime);
+  }
+
 #endif
 }
 
@@ -689,6 +755,24 @@ void wakeup(void *chan)
       }
       release(&p->lock);
     }
+  }
+}
+
+// update times of all process
+void update_times() // called in clockintr when incrementing ticks
+{
+  struct proc *p;
+  for (p = proc; p < &proc[NPROC]; p++)
+  {
+    acquire(&p->lock);
+
+    if (p->state == SLEEPING)
+      p->sleeptime++;
+
+    if (p->state == RUNNING)
+      p->runtime++;
+
+    release(&p->lock);
   }
 }
 

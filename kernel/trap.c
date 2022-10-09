@@ -193,6 +193,7 @@ void clockintr()
 {
   acquire(&tickslock);
   ticks++;
+  update_times(); // update certain time units of processes
   wakeup(&ticks);
   release(&tickslock);
 }

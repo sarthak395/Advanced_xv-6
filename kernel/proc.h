@@ -110,13 +110,20 @@ struct proc {
   // FOR FCFS
   int starttime; // when process was created
 
+  // FOR LBS
+  int tickets;
+
+  // FOR PBS
+  int runtime; // how long the process ran for in 1 cycle
+  int sleeptime; // how long the process was sleeping fot in 1 cycle
+  int niceness; // [0,10] : to calculate dynamic priority 
+  int stpriority; // static priority ( default - 60)
+  int numpicked; // number of times process was picked by scheduler
+
   // FOR SIGALARM
   int is_sigalarm; // 0 or 1 if sigalarm 
   int alarmint; // interval of ticks
   uint64 alarmhandler; // handler function for sigalarm
   int tslalarm; // time passed since last alarm call was done
   struct trapframe* tf_copy;
-
-  // FOR LBS
-  int tickets;
 };
