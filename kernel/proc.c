@@ -54,6 +54,10 @@ void procinit(void)
 
   initlock(&pid_lock, "nextpid");
   initlock(&wait_lock, "wait_lock");
+
+  for(int i=0;i<5;i++) // initialising queues to NULL
+    queues[i]=0;
+
   for (p = proc; p < &proc[NPROC]; p++)
   {
     initlock(&p->lock, "proc");
@@ -61,6 +65,76 @@ void procinit(void)
     p->mask = -1;
     p->kstack = KSTACK((int)(p - proc));
   }
+}
+
+
+// insert process 'p' at the end of queues[qno]
+void push(int qno,struct proc* p)
+{
+  // ASSIGN A NODE TO PROCESS
+  struct node* newnode=0;
+  for(int i=0;i<NPROC;i++)
+  {
+    if(!(nodes[i].p)) // empty node
+    {
+      newnode=&nodes[i];
+      break;
+    }
+  }
+
+  newnode->p=p;
+  newnode->next=0;
+
+  // inserting in queue
+  if(queues[qno]==0) // queue is empty
+    queues[qno]=newnode;
+  else
+  {
+    struct node* cur=queues[qno];
+    while(cur->next){cur=cur->next;}
+    cur->next=newnode;
+  }
+}
+
+// pop and return the first element from queues[qno]
+struct proc* pop(int qno)
+{
+  if(queues[qno]==0) // queue is empty
+    return 0;
+  
+  struct node* del=queues[qno];
+  queues[qno]=queues[qno]->next;
+  struct proc* ret=del->p;
+  del->p=0; // freeing the process 
+  return ret;
+}
+
+void remove(int qno,int pid)
+{
+  if(queues[qno]->p->pid==pid){ // we have to remove head
+    queues[qno]->p=0; // freeing the node
+    queues[qno]=queues[qno]->next;
+    return;
+  } 
+
+  struct node* cur=queues[qno];
+  while(cur && cur->next){
+    if(cur->next->p->pid==pid){
+      struct node* del=cur->next;
+      cur->next=del->next;
+      del->p=0;
+      return;
+    }
+    cur=cur->next;
+  }
+}
+// ASSIGN QUEUE TO A PROCESS
+void assignQueue(struct proc* p) // assign queue to a process
+{
+  p->queue=0; // initially the process should be in the highest priority queue
+  
+  p->qentertime=ticks+1;
+  push(0,p);
 }
 
 // Must be called with interrupts disabled,
@@ -180,6 +254,11 @@ found:
   // LBS
   p->tickets = 1; // by default each process has 1 ticket
 
+  // MLFQ
+  p->allowedtime=1; // initially in queue 0 , allowed time is 1 tick 
+  p->queue=0; // initially process is at queue 0
+  p->qentertime=0;
+
   return p;
 }
 
@@ -285,6 +364,9 @@ void userinit(void)
   p->cwd = namei("/");
 
   p->state = RUNNABLE;
+#ifdef MLFQ
+  assignQueue(p); // DOUBTABLE DECISION
+#endif
 
   release(&p->lock);
 }
@@ -362,6 +444,10 @@ int fork(void)
 
   acquire(&np->lock);
   np->state = RUNNABLE;
+#ifdef MLFQ
+  assignQueue(np);
+#endif
+
   release(&np->lock);
 
   return pid;
@@ -647,7 +733,70 @@ void scheduler(void)
     release(&chosenproc->lock);
     chosenproc->niceness=(10*chosenproc->sleeptime)/(chosenproc->sleeptime + chosenproc->runtime);
   }
+#elif defined(MLFQ)
+  printf("Scheduler : MLFQ\n");
+  for (;;)
+  {
+    // Avoid deadlock by ensuring that devices can interrupt.
+    intr_on();
 
+    // CHECK FOR RUNNABLE PROCESSES NOT IN ANY QUEUE 
+    for (p = proc; p < &proc[NPROC]; p++)
+    {
+      if (p->state == RUNNABLE && p->qentertime==0)
+        assignQueue(p);
+    }
+
+    // AGE THE PROCESSES
+    for(int i=1;i<5;i++)
+    {
+      struct node* cur=queues[i];
+      while(cur!=0)
+      {
+        struct proc* process=cur->p;
+        if(1+ticks-process->qentertime>100) // 100 is the limit wait time
+        {
+          remove(i,process->pid); // remove the process from this queue
+          process->queue=i-1;
+          process->qentertime=ticks+1;
+          push(i,process);
+        }
+        cur=cur->next;
+      }
+    }
+
+    int q=0;
+    while(q<5 && queues[q]==0){q++;} // finding first non-empty queue
+
+    struct proc* chosenproc=pop(q);
+    chosenproc->allowedtime = (1<<q);
+
+    // SWITCHING TO CHOSEN PROC
+    acquire(&chosenproc->lock);
+    if (chosenproc->state == RUNNABLE)
+    {
+      // Switch to chosen process.  It is the process's job
+      // to release its lock and then reacquire it
+      // before jumping back to us.
+      chosenproc->state = RUNNING;
+      c->proc = chosenproc;
+      swtch(&c->context, &chosenproc->context);
+
+      // Process is done running for now.
+      // It should have changed its p->state before coming back.
+      c->proc = 0;
+    }
+    release(&chosenproc->lock);
+
+    chosenproc->qentertime=0;
+    // if the process was preempted or came back from SLEEPING for IO
+    if(chosenproc->state==RUNNABLE){
+      if(chosenproc->allowedtime==0 && q<4){q++;} // move to higher queue if time is up
+      chosenproc->queue=q;
+      chosenproc->qentertime=ticks+1;
+      push(q+1,chosenproc);
+    }
+  }
 #endif
 }
 
@@ -752,6 +901,9 @@ void wakeup(void *chan)
       if (p->state == SLEEPING && p->chan == chan)
       {
         p->state = RUNNABLE;
+        #ifdef MLFQ
+          assignQueue(p);
+        #endif 
       }
       release(&p->lock);
     }
@@ -793,6 +945,9 @@ int kill(int pid)
       {
         // Wake process from sleep().
         p->state = RUNNABLE;
+        #ifdef MLFQ
+          assignQueue(p);
+        #endif 
       }
       release(&p->lock);
       return 0;

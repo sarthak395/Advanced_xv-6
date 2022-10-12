@@ -111,7 +111,7 @@ struct proc {
   int starttime; // when process was created
 
   // FOR LBS
-  int tickets;
+  int tickets;  
 
   // FOR PBS
   int runtime; // how long the process ran for in 1 cycle
@@ -120,6 +120,11 @@ struct proc {
   int stpriority; // static priority ( default - 60)
   int numpicked; // number of times process was picked by scheduler
 
+  // FOR MLFQ
+  int allowedtime; // allowed ticks in the present queue (1<<i for queue i)
+  int queue; // current priority queue -> [0,4]
+  int qentertime; // time at which process entered current queue , initially 0
+
   // FOR SIGALARM
   int is_sigalarm; // 0 or 1 if sigalarm 
   int alarmint; // interval of ticks
@@ -127,3 +132,12 @@ struct proc {
   int tslalarm; // time passed since last alarm call was done
   struct trapframe* tf_copy;
 };
+
+// linked list implementation of queue
+struct node { 
+  struct proc *p;
+  struct node *next;
+};
+
+struct node nodes[NPROC]; // making NPROC nodes for processes
+struct node*queues[5]; // 5 queues which contain head  

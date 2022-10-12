@@ -78,12 +78,17 @@ void usertrap(void)
   if (killed(p))
     exit(-1);
 
-#ifdef RR // disabling interrupt for FCFS
+#ifdef RR // disabling interrupt for FCFS and PBS
   if(which_dev==2)
     yield();
 #endif 
 
-#ifdef LBS // disabling interrupt for FCFS
+#ifdef LBS // disabling interrupt for FCFS and PBS
+  if(which_dev==2)
+    yield();
+#endif 
+
+#ifdef MLFQ // disabling interrupt for FCFS and PBS
   if(which_dev==2)
     yield();
 #endif 
@@ -183,6 +188,12 @@ void kerneltrap()
     yield();
 #endif
 
+#ifdef MLFQ
+  // give up the CPU if this is a timer interrupt.
+  if (which_dev == 2 && myproc() != 0 && myproc()->state == RUNNING)
+    yield();
+#endif
+
   // the yield() may have caused some traps to occur,
   // so restore trap registers for use by kernelvec.S's sepc instruction.
   w_sepc(sepc);
@@ -193,7 +204,13 @@ void clockintr()
 {
   acquire(&tickslock);
   ticks++;
+  
   update_times(); // update certain time units of processes
+  myproc()->allowedtime--; // time available in this queue
+  if(myproc()->allowedtime==0){
+    yield(); // preempt if time in this queue is up
+  }
+
   wakeup(&ticks);
   release(&tickslock);
 }
