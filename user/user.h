@@ -27,6 +27,7 @@ int sigalarm(int ticks, void (*handler)()); // MY 2ND SYSCALL
 int sigreturn(void);
 int settickets(int number);
 int set_priority(int new_priority, int pid);
+int waitx(int*, int*, int*);
 
 // ulib.c
 int stat(const char*, struct stat*);

@@ -131,4 +131,7 @@ struct proc {
   uint64 alarmhandler; // handler function for sigalarm
   int tslalarm; // time passed since last alarm call was done
   struct trapframe* tf_copy;
+
+  // FOR WAITX
+  int etime; // when the process exited
 };

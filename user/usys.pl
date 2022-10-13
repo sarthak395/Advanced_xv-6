@@ -41,3 +41,4 @@ entry("sigalarm"); # 2ND SYSCALL
 entry("sigreturn"); # 2ND SYSCALL
 entry("settickets"); # 3rd SYSCALL
 entry("set_priority"); # 4th SYSCALL
+entry("waitx"); # 1ST SYSCALL

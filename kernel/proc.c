@@ -267,6 +267,9 @@ found:
   p->queue=0; // initially process is at queue 0
   p->qentertime=0;
 
+  // FOR WAITX
+  p->etime=0;
+
   return p;
 }
 
@@ -511,6 +514,7 @@ void exit(int status)
 
   p->xstate = status;
   p->state = ZOMBIE;
+  p->etime=ticks;
 
   release(&wait_lock);
 
@@ -570,6 +574,60 @@ int wait(uint64 addr)
 
     // Wait for a child to exit.
     sleep(p, &wait_lock); // DOC: wait-sleep
+  }
+}
+
+int waitx(uint64 addr, uint *rtime, uint *wtime)
+{
+  struct proc *np;
+  int havekids, pid;
+  struct proc *p = myproc();
+
+  acquire(&wait_lock);
+
+  for (;;)
+  {
+    // Scan through table looking for exited children.
+    havekids = 0;
+    for (np = proc; np < &proc[NPROC]; np++)
+    {
+      if (np->parent == p)
+      {
+        // make sure the child isn't still in exit() or swtch().
+        acquire(&np->lock);
+
+        havekids = 1;
+        if (np->state == ZOMBIE)
+        {
+          // Found one.
+          pid = np->pid;
+          *rtime = np->runtime;
+          *wtime = np->etime - np->starttime - np->runtime;
+          if (addr != 0 && copyout(p->pagetable, addr, (char *)&np->xstate,
+                                   sizeof(np->xstate)) < 0)
+          {
+            release(&np->lock);
+            release(&wait_lock);
+            return -1;
+          }
+          freeproc(np);
+          release(&np->lock);
+          release(&wait_lock);
+          return pid;
+        }
+        release(&np->lock);
+      }
+    }
+
+    // No point waiting if we don't have any children.
+    if (!havekids || p->killed)
+    {
+      release(&wait_lock);
+      return -1;
+    }
+
+    // Wait for a child to exit.
+    sleep(p, &wait_lock); //DOC: wait-sleep
   }
 }
 
