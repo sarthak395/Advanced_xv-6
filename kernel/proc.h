@@ -132,12 +132,3 @@ struct proc {
   int tslalarm; // time passed since last alarm call was done
   struct trapframe* tf_copy;
 };
-
-// linked list implementation of queue
-struct node { 
-  struct proc *p;
-  struct node *next;
-};
-
-struct node nodes[NPROC]; // making NPROC nodes for processes
-struct node*queues[5]; // 5 queues which contain head  

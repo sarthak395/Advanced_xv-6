@@ -206,10 +206,15 @@ void clockintr()
   ticks++;
   
   update_times(); // update certain time units of processes
+#ifdef MLFQ
   myproc()->allowedtime--; // time available in this queue
   if(myproc()->allowedtime==0){
     yield(); // preempt if time in this queue is up
   }
+  // check if we have killed the process
+  if(myproc() && myproc()->killed)
+    exit(1);
+#endif
 
   wakeup(&ticks);
   release(&tickslock);

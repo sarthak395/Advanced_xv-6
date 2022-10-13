@@ -10,6 +10,17 @@
 #define min(a, b) ((a) < (b) ? (a) : (b))
 #define max(a, b) ((a) > (b) ? (a) : (b))
 
+// linked list implementation of queue
+struct node { 
+  struct proc *p;
+  struct node *next;
+};
+
+typedef struct node* nodeptr;
+
+struct node nodes[NPROC]; // making NPROC nodes for processes
+nodeptr queues[5]; // 5 queues which contain head  
+
 struct cpu cpus[NCPU];
 
 struct proc proc[NPROC];
@@ -50,13 +61,12 @@ void proc_mapstacks(pagetable_t kpgtbl)
 // initialize the proc table.
 void procinit(void)
 {
+  for(int i=0;i<5;i++) // initialising queues to NULL
+    queues[i]=0;
   struct proc *p;
 
   initlock(&pid_lock, "nextpid");
   initlock(&wait_lock, "wait_lock");
-
-  for(int i=0;i<5;i++) // initialising queues to NULL
-    queues[i]=0;
 
   for (p = proc; p < &proc[NPROC]; p++)
   {
@@ -132,7 +142,6 @@ void remove(int qno,int pid)
 void assignQueue(struct proc* p) // assign queue to a process
 {
   p->queue=0; // initially the process should be in the highest priority queue
-  
   p->qentertime=ticks+1;
   push(0,p);
 }
@@ -255,7 +264,6 @@ found:
   p->tickets = 1; // by default each process has 1 ticket
 
   // MLFQ
-  p->allowedtime=1; // initially in queue 0 , allowed time is 1 tick 
   p->queue=0; // initially process is at queue 0
   p->qentertime=0;
 
@@ -365,9 +373,8 @@ void userinit(void)
 
   p->state = RUNNABLE;
 #ifdef MLFQ
-  assignQueue(p); // DOUBTABLE DECISION
+  assignQueue(p);
 #endif
-
   release(&p->lock);
 }
 
@@ -444,9 +451,6 @@ int fork(void)
 
   acquire(&np->lock);
   np->state = RUNNABLE;
-#ifdef MLFQ
-  assignQueue(np);
-#endif
 
   release(&np->lock);
 
@@ -584,6 +588,7 @@ void scheduler(void)
   c->proc = 0;
 
 #ifdef RR // ROUND ROBIN SCHEDULER (PRE-EMPTIVE)
+  printf("scheduler RR\n");
   for (;;)
   {
     // Avoid deadlock by ensuring that devices can interrupt.
@@ -647,6 +652,7 @@ void scheduler(void)
   }
 
 #elif defined(LBS) // LOTTERY BASED SCHEDULER (PRE-EMPTIVE)
+  printf("scheduler LBS\n");
   for (;;)
   {
     struct proc *chosenproc = proc;
@@ -743,7 +749,7 @@ void scheduler(void)
     // CHECK FOR RUNNABLE PROCESSES NOT IN ANY QUEUE 
     for (p = proc; p < &proc[NPROC]; p++)
     {
-      if (p->state == RUNNABLE && p->qentertime==0)
+      if ((p->state == RUNNABLE) && (p->qentertime==0))
         assignQueue(p);
     }
 
@@ -759,7 +765,7 @@ void scheduler(void)
           remove(i,process->pid); // remove the process from this queue
           process->queue=i-1;
           process->qentertime=ticks+1;
-          push(i,process);
+          push(i-1,process);
         }
         cur=cur->next;
       }
@@ -791,7 +797,7 @@ void scheduler(void)
     chosenproc->qentertime=0;
     // if the process was preempted or came back from SLEEPING for IO
     if(chosenproc->state==RUNNABLE){
-      if(chosenproc->allowedtime==0 && q<4){q++;} // move to higher queue if time is up
+      if((chosenproc->allowedtime==0) && (q<4)){q++;} // move to higher queue if time is up
       chosenproc->queue=q;
       chosenproc->qentertime=ticks+1;
       push(q+1,chosenproc);
