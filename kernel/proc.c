@@ -832,6 +832,7 @@ void scheduler(void)
     int q=0;
     while(q<5 && queues[q]==0){q++;} // finding first non-empty queue
 
+    
     struct proc* chosenproc=pop(q);
     chosenproc->allowedtime = (1<<q);
 
@@ -854,11 +855,11 @@ void scheduler(void)
 
     chosenproc->qentertime=0;
     // if the process was preempted or came back from SLEEPING for IO
-    if(chosenproc->state==RUNNABLE){
+    if(chosenproc && chosenproc->state==RUNNABLE){
       if((chosenproc->allowedtime==0) && (q<4)){q++;} // move to higher queue if time is up
       chosenproc->queue=q;
       chosenproc->qentertime=ticks+1;
-      push(q+1,chosenproc);
+      push(q,chosenproc);
     }
   }
 #endif

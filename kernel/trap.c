@@ -27,6 +27,35 @@ void trapinithart(void)
   w_stvec((uint64)kernelvec);
 }
 
+// in case of page fault
+int cow_handler(pagetable_t pagetable,uint64 va)
+{
+  if(va>=MAXVA) // so that walk doesn't panic
+    return -1;
+  
+  pte_t *pte=walk(pagetable,va,0);
+  if(pte==0)
+    return -1; // if pagetable not found
+  
+  if((*pte & PTE_U)==0 || (*pte & PTE_V)==0)
+    return -1; // crazy addresses
+  
+  uint64 pa1=PTE2PA(*pte);
+  
+  uint64 pa2=(uint64) kalloc();
+  if(pa2==0){
+    printf("Cow KAlloc failed\n");
+    return -1;
+  }
+
+  memmove((void*)pa2,(void *)pa1,4096);
+
+  kfree((void *)pa1); // it now means decrementing the pageref 
+
+  *pte=PA2PTE(pa2) | PTE_V | PTE_U | PTE_R | PTE_W | PTE_X; // other process creates a copy and goes on
+
+  return 0;
+}
 //
 // handle an interrupt, exception, or system call from user space.
 // called from trampoline.S
@@ -64,6 +93,10 @@ void usertrap(void)
 
     syscall();
   }
+  else if(r_scause()==0xf){ // we get the pagefault
+    if(cow_handler(p->pagetable,r_stval())<0) 
+      p->killed=1;
+  }
   else if ((which_dev = devintr()) != 0)
   { // our work was done here
     // ok
@@ -79,22 +112,22 @@ void usertrap(void)
     exit(-1);
 
 #ifdef RR // disabling interrupt for FCFS and PBS
-  if(which_dev==2)
+  if (which_dev == 2)
     yield();
-#endif 
+#endif
 
 #ifdef LBS // disabling interrupt for FCFS and PBS
-  if(which_dev==2)
+  if (which_dev == 2)
     yield();
-#endif 
+#endif
 
 #ifdef MLFQ // disabling interrupt for FCFS and PBS
-  if(which_dev==2)
+  if (which_dev == 2)
     yield();
-#endif 
+#endif
 
   // give up the CPU if this is an external timer interrupt
-  if ((which_dev == 2) && (p != 0) && (p->state == RUNNING) && (p->alarmint!=0)) // TIMER INTERRUPT FROM USER SPACE WHEN PROCESS IS RUNNING
+  if ((which_dev == 2) && (p != 0) && (p->state == RUNNING) && (p->alarmint != 0)) // TIMER INTERRUPT FROM USER SPACE WHEN PROCESS IS RUNNING
   {
     p->tslalarm += 1;                                      // incrementing time since last alarm
     if ((p->tslalarm >= p->alarmint) && (!p->is_sigalarm)) // Ohh !! we have to call the handler now
@@ -204,16 +237,22 @@ void clockintr()
 {
   acquire(&tickslock);
   ticks++;
-  
+
   update_times(); // update certain time units of processes
 #ifdef MLFQ
-  myproc()->allowedtime--; // time available in this queue
-  if(myproc()->allowedtime==0){
-    yield(); // preempt if time in this queue is up
+  if (myproc())
+  {
+    printf("Entered Here\n");
+    myproc()->allowedtime--; // time available in this queue
+    if (myproc()->allowedtime == 0)
+    {
+      yield(); // preempt if time in this queue is up
+    }
+
+    check if we have killed the process
+    if (myproc() && myproc()->killed)
+      exit(1);
   }
-  // check if we have killed the process
-  if(myproc() && myproc()->killed)
-    exit(1);
 #endif
 
   wakeup(&ticks);

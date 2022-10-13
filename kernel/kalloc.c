@@ -14,6 +14,7 @@ void freerange(void *pa_start, void *pa_end);
 extern char end[]; // first address after kernel.
                    // defined by kernel.ld.
 
+int refcount[PHYSTOP/PGSIZE]; // total physical memory by size of a page size
 struct run {
   struct run *next;
 };
@@ -36,7 +37,19 @@ freerange(void *pa_start, void *pa_end)
   char *p;
   p = (char*)PGROUNDUP((uint64)pa_start);
   for(; p + PGSIZE <= (char*)pa_end; p += PGSIZE)
+  {
+    refcount[(uint64)p/4096]=1;
     kfree(p);
+  }
+}
+
+void incref(uint64 pa){
+  int pagenumber=pa/PGSIZE;
+  acquire(&kmem.lock);
+  if(pa>=PHYSTOP || refcount[pagenumber]<1)
+    panic("incref");
+  refcount[pagenumber]+=1; 
+  release(&kmem.lock);
 }
 
 // Free the page of physical memory pointed at by pa,
@@ -50,6 +63,18 @@ kfree(void *pa)
 
   if(((uint64)pa % PGSIZE) != 0 || (char*)pa < end || (uint64)pa >= PHYSTOP)
     panic("kfree");
+
+  // Need to acquire lock for decrementing refs
+  acquire(&kmem.lock);
+  int pagenumber=(uint64)pa/PGSIZE;
+  if(refcount[pagenumber]<1)
+    panic("Kfree ref");
+  refcount[pagenumber]-=1;
+  int tmp=refcount[pagenumber];
+  release(&kmem.lock);
+
+  if(tmp>0) // NO need to free the page
+    return;
 
   // Fill with junk to catch dangling refs.
   memset(pa, 1, PGSIZE);
@@ -72,8 +97,13 @@ kalloc(void)
 
   acquire(&kmem.lock);
   r = kmem.freelist;
-  if(r)
+  if(r){
     kmem.freelist = r->next;
+    int pagenumber = (uint64)r/PGSIZE; // finding page number
+    if(refcount[pagenumber]!=0)
+      panic("HOW is a new page already referenced");
+    refcount[pagenumber]=1; // initialising ref to 1
+  }
   release(&kmem.lock);
 
   if(r)
