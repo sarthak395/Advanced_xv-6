@@ -53,7 +53,7 @@ int cow_handler(pagetable_t pagetable,uint64 va)
   kfree((void *)pa1); // it now means decrementing the pageref 
 
   *pte=PA2PTE(pa2) | PTE_V | PTE_U | PTE_R | PTE_W | PTE_X; // other process creates a copy and goes on
-
+  *pte &= ~PTE_C;
   return 0;
 }
 //
@@ -209,23 +209,10 @@ void kerneltrap()
     panic("kerneltrap");
   }
 
-#ifdef RR
-  // give up the CPU if this is a timer interrupt.
-  if (which_dev == 2 && myproc() != 0 && myproc()->state == RUNNING)
-    yield();
-#endif
 
-#ifdef LBS
   // give up the CPU if this is a timer interrupt.
   if (which_dev == 2 && myproc() != 0 && myproc()->state == RUNNING)
     yield();
-#endif
-
-#ifdef MLFQ
-  // give up the CPU if this is a timer interrupt.
-  if (which_dev == 2 && myproc() != 0 && myproc()->state == RUNNING)
-    yield();
-#endif
 
   // the yield() may have caused some traps to occur,
   // so restore trap registers for use by kernelvec.S's sepc instruction.
@@ -240,19 +227,7 @@ void clockintr()
 
   update_times(); // update certain time units of processes
 #ifdef MLFQ
-  if (myproc())
-  {
-    printf("Entered Here\n");
-    myproc()->allowedtime--; // time available in this queue
-    if (myproc()->allowedtime == 0)
-    {
-      yield(); // preempt if time in this queue is up
-    }
-
-    check if we have killed the process
-    if (myproc() && myproc()->killed)
-      exit(1);
-  }
+  myproc()->allowedtime--; // time available in this queue
 #endif
 
   wakeup(&ticks);

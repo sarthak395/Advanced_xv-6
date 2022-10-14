@@ -323,7 +323,10 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
     // memmove(mem, (char*)pa, PGSIZE);
 
     flags &= ~PTE_W; // disabling writting for child
+    flags = flags | PTE_C; // enabling COW flag
+
     *pte &= ~PTE_W; // disabling writting for parent
+    *pte = *pte | PTE_C; // enabling COW flag
 
     incref(pa);
     if(mappages(new, i, PGSIZE, (uint64)pa, flags) != 0){ // only map the page table and not memory
@@ -361,11 +364,14 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
   while(len > 0){
     va0 = PGROUNDDOWN(dstva);
 
+    pa0=walkaddr(pagetable,va0);
+    if(pa0==0)
+      return -1;
     pte_t *pte=walk(pagetable,va0,0);
     if(pte==0 || (*pte & PTE_V)==0 || (*pte & PTE_U)==0)
       return -1;
     
-    if((*pte & PTE_W)==0){ // this is a cow page
+    if((*pte & PTE_C)==0){ // this is a cow page
       if(cow_handler(pagetable,va0)<0)
         return -1;
     }
