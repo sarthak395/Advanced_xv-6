@@ -1,7 +1,3 @@
-xv6 is a re-implementation of Dennis Ritchie's and Ken Thompson's Unix
-Version 6 (v6).  xv6 loosely follows the structure and style of v6,
-but is implemented for a modern RISC-V multiprocessor using ANSI C.
-
 
 # Modified xv6 OS
 
@@ -25,37 +21,7 @@ make qemu SCHEDULER={SCHEDULER} CPUS={CPUS};
   - `LBS` (Lottery Based Scheduler)
   - `MLFQ` (Multi Level Feedback Queue)
 
-<!--## New Features Implemented-->
 
-<!--### waitx system call-->
-
-<!--- Creation time, end time, cpu running time and IO time have been added to proc structure-->
-<!--- A new system call `waitx` implemented which is just like `wait` but takes pointer to two integers as arguments-->
-<!--- Running time and waiting time is stored in the arguments given-->
-
-<!--### time command-->
-
-<!--- Prints the running and waiting time of the program given-->
-<!--- Uses `waitx` system call-->
-
-<!--### ps user program-->
-
-<!--- Uses `ps` system call-->
-<!--- Prints details about all processes like:-->
-<!--  - PID: PID of the process-->
-<!--  - Priority: Priority of process (only for PBS)-->
-<!--  - State: State of process- Running, Runnable, Sleeping, etc.-->
-<!--  - r_time: Ticks spent on running on CPU-->
-<!--  - w_time: Waiting time of process (reset when run or changes queue)-->
-<!--  - n_run: Number of times the process got to run on CPU-->
-<!--  - cur_q: Current queue (only for MLFQ)-->
-<!--  - q{i}: Ticks spent in each queue (only for MLFQ)-->
-
-<!--### set_priority system call & setPriority user program-->
-
-<!--- Only valid in case of Priority Based Scheduling (PBS)-->
-<!--- Used to set the priority of a process-->
-<!--- Priority should be between 0 and 100 (both inclusive)-->
 
 ### First Come First Serve (FCFS)
 
@@ -110,71 +76,3 @@ make qemu SCHEDULER={SCHEDULER} CPUS={CPUS};
 
 ![2 CPU total time](./img2.png)
 
-<!-- ## Time spent on each queue in MLFQ
-
-The graphs were plotted for all the 10 child processes for different aging times and number of CPU. Higer process number has higher IO bursts.
-
-- Number of CPU = 1, Aging time = 35 ticks
-
-![1 CPU 35 Aging time](./1cpu35age.png)
-
-- Number of CPU = 1, Aging time = 50 ticks
-
-![1 CPU 50 Aging time](./1cpu50age.png)
-
-- Number of CPU = 2, Aging time = 35 ticks
-
-![2 CPU 35 Aging time](./2cpu35age.png)
-
-- Number of CPU = 2, Aging time = 50 ticks
-
-![2 CPU 50 Aging time](./2cpu50age.png) -->
-
-
-
-
-<!-- ACKNOWLEDGMENTS
-
-xv6 is inspired by John Lions's Commentary on UNIX 6th Edition (Peer
-to Peer Communications; ISBN: 1-57398-013-7; 1st edition (June 14,
-2000)).  See also https://pdos.csail.mit.edu/6.1810/, which provides
-pointers to on-line resources for v6.
-
-The following people have made contributions: Russ Cox (context switching,
-locking), Cliff Frey (MP), Xiao Yu (MP), Nickolai Zeldovich, and Austin
-Clements.
-
-We are also grateful for the bug reports and patches contributed by
-Takahiro Aoyagi, Silas Boyd-Wickizer, Anton Burtsev, carlclone, Ian
-Chen, Dan Cross, Cody Cutler, Mike CAT, Tej Chajed, Asami Doi,
-eyalz800, Nelson Elhage, Saar Ettinger, Alice Ferrazzi, Nathaniel
-Filardo, flespark, Peter Froehlich, Yakir Goaron, Shivam Handa, Matt
-Harvey, Bryan Henry, jaichenhengjie, Jim Huang, Matúš Jókay, John
-Jolly, Alexander Kapshuk, Anders Kaseorg, kehao95, Wolfgang Keller,
-Jungwoo Kim, Jonathan Kimmitt, Eddie Kohler, Vadim Kolontsov, Austin
-Liew, l0stman, Pavan Maddamsetti, Imbar Marinescu, Yandong Mao, Matan
-Shabtay, Hitoshi Mitake, Carmi Merimovich, Mark Morrissey, mtasm, Joel
-Nider, Hayato Ohhashi, OptimisticSide, Harry Porter, Greg Price, Jude
-Rich, segfault, Ayan Shafqat, Eldar Sehayek, Yongming Shen, Fumiya
-Shigemitsu, Cam Tenny, tyfkda, Warren Toomey, Stephen Tu, Rafael Ubal,
-Amane Uehara, Pablo Ventura, Xi Wang, WaheedHafez, Keiichi Watanabe,
-Nicolas Wolovick, wxdao, Grant Wu, Jindong Zhang, Icenowy Zheng,
-ZhUyU1997, and Zou Chang Wei.
-
-
-The code in the files that constitute xv6 is
-Copyright 2006-2022 Frans Kaashoek, Robert Morris, and Russ Cox.
-
-ERROR REPORTS
-
-Please send errors and suggestions to Frans Kaashoek and Robert Morris
-(kaashoek,rtm@mit.edu).  The main purpose of xv6 is as a teaching
-operating system for MIT's 6.1810, so we are more interested in
-simplifications and clarifications than new features.
-
-BUILDING AND RUNNING XV6
-
-You will need a RISC-V "newlib" tool chain from
-https://github.com/riscv/riscv-gnu-toolchain, and qemu compiled for
-riscv64-softmmu.  Once they are installed, and in your shell
-search path, you can run "make qemu". -->

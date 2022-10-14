@@ -37,6 +37,7 @@ int main()
         }
         else
         {
+            printf("Process %d PID %d started\n",n,pid);
 #ifdef PBS
             set_priority(80, pid); // Will only matter for PBS, set lower priority for IO bound processes
 #endif
