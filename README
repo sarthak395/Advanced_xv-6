@@ -106,7 +106,7 @@ make qemu SCHEDULER={SCHEDULER} CPUS={CPUS};
 
   FCFS took a long time whereas the other 3 (RR, PBS, MLFQ) were nearly same
     
- (./img1.png) 
+ ![alt text](./img1.png) 
 
 - Number of CPU = 2
 
