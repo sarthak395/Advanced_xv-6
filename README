@@ -2,7 +2,142 @@ xv6 is a re-implementation of Dennis Ritchie's and Ken Thompson's Unix
 Version 6 (v6).  xv6 loosely follows the structure and style of v6,
 but is implemented for a modern RISC-V multiprocessor using ANSI C.
 
-ACKNOWLEDGMENTS
+
+# Modified xv6 OS
+
+## Sarthak Bansal | 2021101134
+
+---
+
+## Running OS
+
+1. Install qemu
+2. From the root directory of project, run 
+```
+make clean;
+make qemu SCHEDULER={SCHEDULER} CPUS={CPUS};
+```
+
+- `SCHEDULER` can be one of the following:
+  - `RR` (Round Robin) (Default)
+  - `FCFS` (First Come First Serve)
+  - `PBS` (Priority Based Scheduler)
+  - `LBS` (Lottery Based Scheduler)
+  - `MLFQ` (Multi Level Feedback Queue)
+
+<!--## New Features Implemented-->
+
+<!--### waitx system call-->
+
+<!--- Creation time, end time, cpu running time and IO time have been added to proc structure-->
+<!--- A new system call `waitx` implemented which is just like `wait` but takes pointer to two integers as arguments-->
+<!--- Running time and waiting time is stored in the arguments given-->
+
+<!--### time command-->
+
+<!--- Prints the running and waiting time of the program given-->
+<!--- Uses `waitx` system call-->
+
+<!--### ps user program-->
+
+<!--- Uses `ps` system call-->
+<!--- Prints details about all processes like:-->
+<!--  - PID: PID of the process-->
+<!--  - Priority: Priority of process (only for PBS)-->
+<!--  - State: State of process- Running, Runnable, Sleeping, etc.-->
+<!--  - r_time: Ticks spent on running on CPU-->
+<!--  - w_time: Waiting time of process (reset when run or changes queue)-->
+<!--  - n_run: Number of times the process got to run on CPU-->
+<!--  - cur_q: Current queue (only for MLFQ)-->
+<!--  - q{i}: Ticks spent in each queue (only for MLFQ)-->
+
+<!--### set_priority system call & setPriority user program-->
+
+<!--- Only valid in case of Priority Based Scheduling (PBS)-->
+<!--- Used to set the priority of a process-->
+<!--- Priority should be between 0 and 100 (both inclusive)-->
+
+### First Come First Serve (FCFS)
+
+- `Non-preemptive scheduling` : Disable pre-emption in usertrap and kerneltrap in kernel/trap.c
+- `Always looks for process with lowest creation time` : 
+     - Change the way process is chosen in scheduler() in proc.c
+     - Add starttime of process in proc.h and initialise it in allocproc()
+
+### Lottery Based Scheduler (LBS)
+-  `Pre-emptive Scheduling`
+-  `Set tickets` : 
+    -  Each process is selected on the basis of number of tickets it has (defined in proc.h and initialised to 1 ) , process which has maximum tickets is scheduled first
+    -  Add a system call `settickets` to SET number of tickets of the current process which can increase chances of scheduling of a process
+
+### Priority Based Scheduler (PBS)
+
+- `Non-Preemptive scheduling`
+- `Dynamic Priority and Static Priority` :
+    - Lower the value, higher the priority; if same priority , then number of times process is picked breaks the tie ; if that is also same , then starttime of process comes to rescue
+    - Static priority initialised to 60
+    - Dynamic priority is calculated using `niceness` and static priority
+    $$dp = max(0, min(staticpriority - niceness + 5, 100))$$
+    - `niceness` , which is initially 5 , is updated using a process' sleeping and running time in that quanta (calculated using a function update_times() in clockintr in trap.c after updating ticks)
+    $$niceness=(10*sleeptime)/(sleeptime + runtime);$$
+- Created a system call `set_priority` to change static priority of a process
+- If priority increases , then process is rescheduled by making `num_picked` to 0
+
+### Multi Level Feedback Queue (MLFQ)
+
+- `Preemptive Scheduling`
+- `5` queues are created :
+    - `struct node` is defined which contains `struct proc*` and `struct node* next`
+    - `NPROC` nodes are already created with empty processes
+    - struct Queue contains `head` of queue and `size` of queue
+    - Regular routines like `push` , `pop` , `remove` are implemented in proc.c
+- For each process we have `queueno` , `inqueue` (to check whether a process is part of a queue) ,  `timeslice` ( time left in this queue ) and `qitime` (entry time in a queue to implement ageing)
+- Process in queue _`i`_ gets _`2^i`_ ticks to run
+- If a process spends more than certain number of ticks (ageing ticks) in a process , it is demoted to a lower queue (ageing) , implemented in scheduler
+- Then  , process in the lowermost queueno is chosen and implemented
+- If a process exhausts the timeslice in a queue and it's still Runnable, it gets demoted to lower priority (only if it's not already in the lowest) , implemented in `usertrap()` and `kerneltrap()` in trap.c
+
+- **Exploitation:** A process can exploit this MLFQ algorithms by programming it to go to sleep for a small time just before it is about to exhaust the timeslice of top priority queue. This way it gets to stay on the top priority queue , thus causing large waiting time for processes in higher queues
+
+## Average waiting and running Times for each Scheduling Algorithm
+> Results were generating using waitx system call and schedulertest.c 
+
+- Number of CPU = 1
+
+  FCFS took a long time whereas the other 3 (RR, PBS, MLFQ) were nearly same
+    
+ (./img1.png) 
+
+- Number of CPU = 2
+
+  Major decrease in time for FCFS (still more than other three). Minor change in time for other three algorithms
+
+<!-- ![2 CPU total time](./2cpuTT.png) -->
+
+<!-- ## Time spent on each queue in MLFQ
+
+The graphs were plotted for all the 10 child processes for different aging times and number of CPU. Higer process number has higher IO bursts.
+
+- Number of CPU = 1, Aging time = 35 ticks
+
+![1 CPU 35 Aging time](./1cpu35age.png)
+
+- Number of CPU = 1, Aging time = 50 ticks
+
+![1 CPU 50 Aging time](./1cpu50age.png)
+
+- Number of CPU = 2, Aging time = 35 ticks
+
+![2 CPU 35 Aging time](./2cpu35age.png)
+
+- Number of CPU = 2, Aging time = 50 ticks
+
+![2 CPU 50 Aging time](./2cpu50age.png) -->
+
+
+
+
+<!-- ACKNOWLEDGMENTS
 
 xv6 is inspired by John Lions's Commentary on UNIX 6th Edition (Peer
 to Peer Communications; ISBN: 1-57398-013-7; 1st edition (June 14,
@@ -46,4 +181,4 @@ BUILDING AND RUNNING XV6
 You will need a RISC-V "newlib" tool chain from
 https://github.com/riscv/riscv-gnu-toolchain, and qemu compiled for
 riscv64-softmmu.  Once they are installed, and in your shell
-search path, you can run "make qemu".
+search path, you can run "make qemu". -->
