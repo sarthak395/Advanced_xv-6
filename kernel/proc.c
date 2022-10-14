@@ -10,10 +10,8 @@
 #define min(a, b) ((a) < (b) ? (a) : (b))
 #define max(a, b) ((a) > (b) ? (a) : (b))
 
-
 struct node nodes[NPROC];
-struct node *queues[5];
-
+struct Queue queues[5];
 
 struct cpu cpus[NCPU];
 
@@ -70,10 +68,10 @@ void procinit(void)
   }
 #ifdef MLFQ
   for (int i = 0; i < 5; i++)
-    queues[i] = 0; // initialise all queue addresses to 0
-  for(int i=0;i<NPROC;i++)
-    nodes[i].p=0; //initially all nodes are empty
-
+  {
+    queues[i].head=0;
+    queues[i].size=0;
+  }
 #endif
 }
 
@@ -211,7 +209,7 @@ found:
   return p;
 }
 
-void push(int qno, struct proc *p)
+void push(struct node **head, struct proc *p)
 {
   struct node *newNode = 0;
   for (int i = 0; i < NPROC; i++)
@@ -222,16 +220,17 @@ void push(int qno, struct proc *p)
       break;
     }
   }
+  // printf("Address of newnode %p\n",newNode);
   newNode->next = 0;
   newNode->p = p;
 
-  if (!(queues[qno]))
+  if (!(*head))
   {
-    queues[qno] = newNode;
+    *head = newNode;
   }
   else
   {
-    struct node *cur = queues[qno];
+    struct node *cur = *head;
     while (cur->next)
       cur = cur->next;
     cur->next = newNode;
@@ -239,31 +238,28 @@ void push(int qno, struct proc *p)
 }
 
 struct proc *
-pop(int qno)
+pop(struct node **head)
 {
-  if (!(queues[qno]))
+  if (!(*head))
     return 0;
 
-  struct node *del = queues[qno];
-  queues[qno] = queues[qno]->next;
+  struct node *del = (*head);
+  *head = (*head)->next;
   struct proc *ret = del->p;
   del->p = 0;
   return ret;
 }
 
-void remove(int qno, int pid)
+void remove(struct node **head, int pid)
 {
-  if(!queues[qno])
-    return;
-  
-  if (queues[qno]->p->pid == pid)
+  if ((*head)->p->pid == pid)
   {
-    queues[qno]->p = 0;
-    queues[qno] = queues[qno]->next;
+    (*head)->p = 0;
+    *head = (*head)->next;
     return;
   }
 
-  struct node *cur = queues[qno];
+  struct node *cur = *head;
   while (cur && cur->next)
   {
     if (cur->next->p->pid == pid)
@@ -803,17 +799,19 @@ void scheduler(void)
   printf("Scheduler : MLFQ\n");
   for (;;)
   {
+    intr_on();
     struct proc *chosenproc = 0;
 
     // implement ageing
     for (p = proc; p < &proc[NPROC]; p++)
     {
-      if (p->state == RUNNABLE && (ticks - p->qitime >= 100))
+      if ((p->state == RUNNABLE) && (ticks - p->qitime >= 128))
       {
         p->qitime = ticks;
         if (p->inqueue)
         {
-          remove(p->queueno, p->pid);
+          remove(&(queues[p->queueno].head), p->pid);
+          queues[p->queueno].size--;
           p->inqueue = 0;
         }
         if (p->queueno != 0)
@@ -825,9 +823,10 @@ void scheduler(void)
     for (p = proc; p < &proc[NPROC]; p++)
     {
       acquire(&p->lock);
-      if (p->state == RUNNABLE && p->inqueue == 0)
+      if ((p->state == RUNNABLE) && (p->inqueue == 0))
       {
-        push(p->queueno, p);
+        push(&(queues[p->queueno].head), p);
+        queues[p->queueno].size++;
         p->inqueue = 1;
       }
       release(&p->lock);
@@ -835,15 +834,18 @@ void scheduler(void)
 
     for (int qno = 0; qno < 5; qno++)
     {
-      while (queues[qno])
+      while (queues[qno].size)
       {
-        p = pop(qno); // POPPPING THE PROCESS
+        p = (queues[qno].head)->p;
         acquire(&p->lock);
+        p = pop(&(queues[qno].head)); // POPPPING THE PROCESS
+        queues[qno].size--;
         p->inqueue = 0;
         if (p->state == RUNNABLE)
         {
           p->qitime = ticks;
           chosenproc = p;
+
           break;
         }
         release(&p->lock);
@@ -851,9 +853,10 @@ void scheduler(void)
       if (chosenproc)
         break;
     }
+    
     if (!chosenproc)
       continue;
-
+    
     chosenproc->timeslice = 1 << (chosenproc->queueno);
     chosenproc->state = RUNNING;
     c->proc = chosenproc;

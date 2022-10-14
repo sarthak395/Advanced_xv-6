@@ -143,3 +143,8 @@ struct node{
   struct node* next;
 };
 
+struct Queue{
+  struct node* head;
+  int size;
+};
+
