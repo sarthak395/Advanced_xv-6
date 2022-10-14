@@ -103,12 +103,16 @@ make qemu SCHEDULER={SCHEDULER} CPUS={CPUS};
 > Results were generating using waitx system call and schedulertest.c 
 
 - Number of CPU = 1
+
+  FCFS took a long time whereas the other 3 (RR, PBS, MLFQ) were nearly same
     
  ![alt text](./img1.png) 
 
 - Number of CPU = 2
 
-![2 CPU total time](./img2.png)
+  Major decrease in time for FCFS (still more than other three). Minor change in time for other three algorithms
+
+<!-- ![2 CPU total time](./2cpuTT.png) -->
 
 <!-- ## Time spent on each queue in MLFQ
 
