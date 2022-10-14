@@ -121,9 +121,11 @@ struct proc {
   int numpicked; // number of times process was picked by scheduler
 
   // FOR MLFQ
-  int allowedtime; // allowed ticks in the present queue (1<<i for queue i)
-  int queue; // current priority queue -> [0,4]
-  int qentertime; // time at which process entered current queue , initially 0
+  int queueno; // queueno
+  int inqueue; // whether or not a part of queue
+  int timeslice; // timeslice in this queue
+  int qitime; // Entry time in this queue
+  int qrtime[5]; // run time in 5 queues
 
   // FOR SIGALARM
   int is_sigalarm; // 0 or 1 if sigalarm 
@@ -135,3 +137,9 @@ struct proc {
   // FOR WAITX
   int etime; // when the process exited
 };
+
+struct node{
+  struct proc* p;
+  struct node* next;
+};
+

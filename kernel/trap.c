@@ -9,6 +9,11 @@
 struct spinlock tickslock;
 uint ticks;
 
+
+extern struct node nodes[NPROC];
+extern struct node *queues[5];
+
+
 extern char trampoline[], uservec[], userret[];
 
 // in kernelvec.S, calls kerneltrap().
@@ -28,31 +33,32 @@ void trapinithart(void)
 }
 
 // in case of page fault
-int cow_handler(pagetable_t pagetable,uint64 va)
+int cow_handler(pagetable_t pagetable, uint64 va)
 {
-  if(va>=MAXVA) // so that walk doesn't panic
+  if (va >= MAXVA) // so that walk doesn't panic
     return -1;
-  
-  pte_t *pte=walk(pagetable,va,0);
-  if(pte==0)
+
+  pte_t *pte = walk(pagetable, va, 0);
+  if (pte == 0)
     return -1; // if pagetable not found
-  
-  if((*pte & PTE_U)==0 || (*pte & PTE_V)==0)
+
+  if ((*pte & PTE_U) == 0 || (*pte & PTE_V) == 0)
     return -1; // crazy addresses
-  
-  uint64 pa1=PTE2PA(*pte);
-  
-  uint64 pa2=(uint64) kalloc();
-  if(pa2==0){
+
+  uint64 pa1 = PTE2PA(*pte);
+
+  uint64 pa2 = (uint64)kalloc();
+  if (pa2 == 0)
+  {
     printf("Cow KAlloc failed\n");
     return -1;
   }
 
-  memmove((void*)pa2,(void *)pa1,4096);
+  memmove((void *)pa2, (void *)pa1, 4096);
 
-  kfree((void *)pa1); // it now means decrementing the pageref 
+  kfree((void *)pa1); // it now means decrementing the pageref
 
-  *pte=PA2PTE(pa2) | PTE_V | PTE_U | PTE_R | PTE_W | PTE_X; // other process creates a copy and goes on
+  *pte = PA2PTE(pa2) | PTE_V | PTE_U | PTE_R | PTE_W | PTE_X; // other process creates a copy and goes on
   *pte &= ~PTE_C;
   return 0;
 }
@@ -93,9 +99,10 @@ void usertrap(void)
 
     syscall();
   }
-  else if(r_scause()==0xf){ // we get the pagefault
-    if(cow_handler(p->pagetable,r_stval())<0) 
-      p->killed=1;
+  else if (r_scause() == 0xf)
+  { // we get the pagefault
+    if (cow_handler(p->pagetable, r_stval()) < 0)
+      p->killed = 1;
   }
   else if ((which_dev = devintr()) != 0)
   { // our work was done here
@@ -121,9 +128,25 @@ void usertrap(void)
     yield();
 #endif
 
-#ifdef MLFQ // disabling interrupt for FCFS and PBS
-  if (which_dev == 2)
-    yield();
+#ifdef MLFQ
+  if (which_dev == 2 && myproc() && myproc()->state == RUNNING)
+  {
+    struct proc *p = myproc();
+    if (p->timeslice <= 0)
+    {
+      if (p->queueno < 4)
+        p->queueno += 1;
+
+      yield();
+    }
+    for (int i = 0; i < p->queueno; i++)
+    {
+      if (queues[i])
+      {
+        yield();
+      }
+    }
+  }
 #endif
 
   // give up the CPU if this is an external timer interrupt
@@ -209,10 +232,35 @@ void kerneltrap()
     panic("kerneltrap");
   }
 
-
   // give up the CPU if this is a timer interrupt.
   if (which_dev == 2 && myproc() != 0 && myproc()->state == RUNNING)
+  {
+#ifdef RR
     yield();
+#endif
+#ifdef LBS
+    yield();
+#endif
+#ifdef MLFQ
+    struct proc *p = myproc();
+
+    if (p->timeslice <= 0)
+    {
+      if (p->queueno < 4)
+        p->queueno += 1;
+
+      yield();
+    }
+    for (int i = 0; i < p->queueno; i++)
+    {
+      if (queues[i])
+      {
+        yield();
+      }
+      
+    }
+#endif
+  }
 
   // the yield() may have caused some traps to occur,
   // so restore trap registers for use by kernelvec.S's sepc instruction.
@@ -226,9 +274,6 @@ void clockintr()
   ticks++;
 
   update_times(); // update certain time units of processes
-#ifdef MLFQ
-  myproc()->allowedtime--; // time available in this queue
-#endif
 
   wakeup(&ticks);
   release(&tickslock);
